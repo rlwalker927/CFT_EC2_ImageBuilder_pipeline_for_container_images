@@ -24,12 +24,13 @@ ___
 First, the stack creates an [`AWS::S3::Bucket`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-bucket.html), where logs are stored.
 > **NOTE:**
 > When deleting the stack, make sure to empty the bucket first. Otherwise, you will experience a status of "DELETE_FAILED" in CloudFormation.
-> If you want to delete the stack but keep the bucket, set the DelectionPolicy to Retain (uncomment in template).
-> [https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-deletionpolicy.html](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-deletionpolicy.html)
+> If you want to delete the stack but keep the bucket, set the [DelectionPolicy](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-deletionpolicy.html) to Retain (uncomment in template).
 
 
 Additionally, an [`AWS::ECR::Repository`](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-ecr-repository.html) resource is created, where EC2 Image builder can push the container image to after creation.
 > **NOTE:**
+> When deleting the stack, make sure to empty the repository first. Otherwise, you will experience a status of "DELETE_FAILED" in CloudFormation.
+
 > Since no repository policy is defined in this example, the AWS managed policy "EC2InstanceProfileForImageBuilderECRContainerBuilds" is applied to the instance role / instance profile to grant appropriate permissions to upload ECR images.
 
 
@@ -78,14 +79,23 @@ ___
 ## Walkthrough
 
 It should take approximately 15-20 minutes for the CloudFormation stack build to complete.
-1. Upload the `EC2_imagebuilder_pipeline_for_container_images.yml` template to AWS CloudFormation.
+1. Upload the `ec2_imagebuilder_pipeline_for_container_images.yml` template to AWS CloudFormation.
 2. You will see a checkbox informing you that the stack creates IAM resources. Read and check the box.
 3. Wait for the stack to build. Feel free to monitor the status of your container image build by navigating to Systems Manager (SSM) or EC2 Image Builder. Note that The `AWS::ImageBuilder::Image` resource will show a status of "CREATE_IN_PROGRESS" while the image is being created, and will later show "CREATE_COMPLETE" when the container image build is complete.
 ___
 
 ## Troubleshooting
 
-While the stack is building, you will see an EC2 instance running. This is either the build or test instance. AWS Systems Manager (SSM) Automation will also run. You can observe this automation to see the steps EC2 Image Builder takes to build your container image.
+While the stack is building, you will see an EC2 instance running. This is either the build or test instance. AWS Systems Manager (SSM) Automation will also run simultaneously. You can observe this automation to see the steps EC2 Image Builder takes to build your container image.
 
 
 If the stack fails, check the CloudFormation "Events" tab. These events include a description of any failed resources. For additional troubleshooting associated with the "BUILD" or "TEST" phases, you can also navigate to the S3 bucket resource that was created as part of the the stack.
+___
+
+## Cleanup your stack
+
+To delete AWS resources created by this stack:
+
+1. Delete the contents of the S3 bucket created by the stack (if the bucket is not empty, the stack deletion will fail).To keep the bucket, uncomment the Retain deletion policy for the CloudFormation bucket resource.
+2. Delete the container image within your ECR repository created by the stack (if the repo is not empty, the stack deletion will fail). Unfortunately, there is no Retain deletion policy for the CloudFormation ECR repository resource at this time.
+3. Delete the stack in the CloudFormation console, or by using the CLI/SDK.
