@@ -79,9 +79,29 @@ ___
 ## Walkthrough
 
 It should take approximately 15-20 minutes for the CloudFormation stack build to complete.
-1. Upload the `ec2_imagebuilder_pipeline_for_container_images.yml` template to AWS CloudFormation.
-2. You will see a checkbox informing you that the stack creates IAM resources. Read and check the box.
-3. Wait for the stack to build. Feel free to monitor the status of your container image build by navigating to Systems Manager (SSM) or EC2 Image Builder. Note that The `AWS::ImageBuilder::Image` resource will show a status of "CREATE_IN_PROGRESS" while the image is being created, and will later show "CREATE_COMPLETE" when the container image build is complete.
+
+This solution can be deployed using both the AWS Management Console or the Command Line Interface (CLI). 
+
+
+### AWS Management Console:
+1. Login to your AWS account using the AWS Management Console and navigate to CloudFormation.
+2. Create a new stack and upload the `ec2_imagebuilder_pipeline_for_container_images.yml` template file.
+3. You will see a checkbox informing you that the stack creates IAM resources. Read and check the box.
+4. Wait for the stack to build. Feel free to monitor the status of your container image build by navigating to Systems Manager (SSM) or EC2 Image Builder. Note that The `AWS::ImageBuilder::Image` resource will show a status of "CREATE_IN_PROGRESS" while the image is being created, and will later show "CREATE_COMPLETE" when the container image build is complete.
+
+### CLI:
+1. Ensure that your YAML template and JSON parameters file are located within your current directory.
+2. Run the following command from your terminal:
+```
+aws cloudformation create-stack \
+--stack-name sample-ec2-ib-pipeline-container-images \
+--template-body file://ec2_imagebuilder_pipeline_for_container_images.yml \
+--parameters file://ec2_imagebuilder_pipeline_for_container_images.json \
+--capabilities CAPABILITY_NAMED_IAM \
+--region us-east-1
+```
+> **NOTE:**
+> A parameters file was created as part of this solution to simplify this process.
 ___
 
 ## Troubleshooting
@@ -99,3 +119,5 @@ To delete AWS resources created by this stack:
 1. Delete the contents of the S3 bucket created by the stack (if the bucket is not empty, the stack deletion will fail).To keep the bucket, uncomment the Retain deletion policy for the CloudFormation bucket resource.
 2. Delete the container image within your ECR repository created by the stack (if the repo is not empty, the stack deletion will fail). Unfortunately, there is no Retain deletion policy for the CloudFormation ECR repository resource at this time.
 3. Delete the stack in the CloudFormation console, or by using the CLI/SDK.
+
+
