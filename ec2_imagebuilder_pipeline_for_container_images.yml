@@ -1,0 +1,205 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  This sample template creates AWS CloudFormation resources for an EC2 ImageBuilder pipeline that builds an Amazon Linux 2 container image with Docker 
+  and publishes the image to the specified Amazon Elastic Container Registry (ECR) repository. The pipeline, by default, is scheduled to run a 
+  build at 9:00AM Coordinated Universal Time (UTC) on the first day of every month. 
+
+Parameters:
+  CustomSubnetId:
+    Type: String
+    Default: ""
+    Description: If you do not have a default VPC, or want to use a different VPC, specify the ID of a subnet in which to place the instance used to customize your EC2 container image. If not specified, a subnet from your default VPC will be used.
+  
+  CustomSecurityGroupId:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: Required if you specified a custom subnet ID. Comma-delimited list of one or more IDs of security groups belonging to the VPC to associate with the instance used to customize your EC2 container image.
+  
+  BuildInstanceType:
+    Type: CommaDelimitedList
+    Default: "t2.micro"
+    Description: Comma-delimited list of one or more instance types to select from when building the image. Image Builder will select a type based on availability. The supplied default is compatible with the AWS Free Tier.
+
+  TargetECRRepositoryName:
+    Description: Name of the target ECR repository to push container image to
+    Type: String
+    Default: sample-repository
+   
+  ParentImage:
+    Description: The source Docker image/tag for the container recipe. You can choose from public images hosted on DockerHub, existing container images in Amazon ECR, or Amazon-managed container images.
+    Type: String
+    Default: amazonlinux:latest
+
+Conditions:
+  UseCustomSubnetId: !Not [ !Equals [ !Ref CustomSubnetId, "" ] ]
+
+Resources:
+  ImageBuilderLogBucket:
+    Type: AWS::S3::Bucket
+    # DeletionPolicy: Retain
+  
+  ECRRepository: 
+    Type: AWS::ECR::Repository
+    Properties: 
+      RepositoryName: !Ref TargetECRRepositoryName
+      ImageScanningConfiguration:
+        scanOnPush: "true"
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      Comment: Role to be used by EC2 instance during image build.
+    Properties:
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/EC2InstanceProfileForImageBuilderECRContainerBuilds
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+        Version: "2012-10-17"
+      Path: /executionServiceEC2Role/
+
+  InstanceRoleLoggingPolicy:
+    Type: AWS::IAM::Policy
+    Metadata:
+      Comment: Allows the instance to save log files to an S3 bucket.
+    Properties:
+      PolicyName: ImageBuilderLogBucketPolicy
+      Roles:
+        - Ref: InstanceRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              - Fn::Sub:
+                  - arn:${AWS::Partition}:s3:::${BUCKET}/*
+                  - BUCKET:
+                      Ref: ImageBuilderLogBucket
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /executionServiceEC2Role/
+      Roles:
+        - Ref: InstanceRole
+  
+  Infrastructure:
+    Type: AWS::ImageBuilder::InfrastructureConfiguration
+    Properties:
+      Name: 'AmazonLinux2-ContainerImage-Infrastructure-Configuration'
+      Description: 'This infrastructure configuration will launch into our custom ImageBuilder VPC'
+      InstanceProfileName: !Ref InstanceProfile
+      TerminateInstanceOnFailure: true
+      InstanceTypes:
+        !Ref BuildInstanceType
+      Logging:
+        S3Logs:
+          S3BucketName: !Ref ImageBuilderLogBucket
+          S3KeyPrefix: !Join [ "-", [ 'imagebuilder', !Ref "AWS::StackName" ] ]
+      SubnetId: !If [ UseCustomSubnetId, !Ref CustomSubnetId , !Ref "AWS::NoValue" ]
+      SecurityGroupIds:
+        - !If [ UseCustomSubnetId, !Ref CustomSecurityGroupId , !Ref "AWS::NoValue" ]
+
+  Component:
+    Type: AWS::ImageBuilder::Component
+    Properties:
+      Name: HelloWorld-ContainerImage-Component
+      Platform: Linux
+      Version: 1.0.0
+      Description: 'This is a sample component that demonstrates defining the build, validation, and test phases for an image build lifecycle'
+      ChangeDescription: 'Initial Version'
+      Data: | 
+        name: HelloWorldTestingLinuxDoc - InlineData
+        description: This is hello world testing doc
+        schemaVersion: 1.0
+
+        phases:
+          - name: build
+            steps:
+              - name: HelloWorldStep
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    - echo "Hello World! Build."
+          - name: validate
+            steps:
+              - name: HelloWorldStep
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    - echo "Hello World! Validate."
+          - name: test
+            steps:
+              - name: HelloWorldStep
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    - echo "Hello World! Test."
+
+  Recipe:
+    Type: AWS::ImageBuilder::ContainerRecipe
+    Properties:
+      Name: 'AmazonLinux2-Container-Recipe'
+      Version: 1.0.0
+      ParentImage: !Ref ParentImage
+      PlatformOverride: Linux # Linux | Windows
+      ContainerType: DOCKER
+      Components:
+        - ComponentArn: !Ref Component
+      TargetRepository:
+        Service: ECR
+        RepositoryName: !Ref TargetECRRepositoryName
+      DockerfileTemplateData: |
+        FROM {{{ imagebuilder:parentImage }}}
+        {{{ imagebuilder:environments }}}
+        {{{ imagebuilder:components }}}
+      WorkingDirectory: "/tmp"
+
+  Distribution:
+    Type: AWS::ImageBuilder::DistributionConfiguration
+    Properties:
+      Name: 'AmazonLinux2-Container-DistributionConfiguration'
+      Description: 'This distribution configuration will deploy our container image to the desired target ECR repository in the current region'
+      Distributions:
+        - Region: !Ref 'AWS::Region'
+          ContainerDistributionConfiguration: 
+            TargetRepository: 
+              Service: ECR
+              RepositoryName: !Ref TargetECRRepositoryName
+            ContainerTags:
+              - 'sample-tag'
+
+  Pipeline:
+    Type: AWS::ImageBuilder::ImagePipeline
+    Properties:
+      Name: 'AmazonLinux2-Container-Pipeline'
+      Description: 'Deploys a sample AmazonLinux2 container image to current region'
+      Status: ENABLED
+      ContainerRecipeArn: !Ref Recipe 
+      InfrastructureConfigurationArn: !Ref Infrastructure
+      DistributionConfigurationArn: !Ref Distribution
+      ImageTestsConfiguration:
+        ImageTestsEnabled: true
+        TimeoutMinutes: 60
+      Schedule:
+        ScheduleExpression: 'cron(0 9 1 * ?)'
+        PipelineExecutionStartCondition: 'EXPRESSION_MATCH_ONLY'
+
+  IBImage:
+    Type: AWS::ImageBuilder::Image
+    Properties:
+      ContainerRecipeArn: !Ref Recipe 
+      InfrastructureConfigurationArn: !Ref Infrastructure
+      DistributionConfigurationArn: !Ref Distribution
+      ImageTestsConfiguration:
+        ImageTestsEnabled: true
+        TimeoutMinutes: 60
