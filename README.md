@@ -118,6 +118,7 @@ To delete AWS resources created by this stack:
 
 1. Delete the contents of the S3 bucket created by the stack (if the bucket is not empty, the stack deletion will fail).To keep the bucket, uncomment the Retain deletion policy for the CloudFormation bucket resource.
 2. Delete the container image within your ECR repository created by the stack (if the repo is not empty, the stack deletion will fail). Unfortunately, there is no Retain deletion policy for the CloudFormation ECR repository resource at this time.
-3. Delete the stack in the CloudFormation console, or by using the CLI/SDK.
+3. Delete the stack in the CloudFormation console, or by using the CLI
+
 
 
