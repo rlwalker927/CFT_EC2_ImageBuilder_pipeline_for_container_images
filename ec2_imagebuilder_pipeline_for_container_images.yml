@@ -14,7 +14,7 @@ Parameters:
   CustomSecurityGroupId:
     Type: CommaDelimitedList
     Default: ""
-    Description: Required if you specified a custom subnet ID. Comma-delimited list of one or more IDs of security groups belonging to the VPC to associate with the instance used to customize your EC2 container image.
+    Description: Required if you specified a custom subnet ID (otherwise can be left blank). Comma-delimited list of one or more IDs of security groups belonging to the VPC to associate with the instance used to customize your EC2 container image.
   
   BuildInstanceType:
     Type: CommaDelimitedList
