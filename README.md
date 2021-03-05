@@ -8,15 +8,19 @@ Building up-to-date container images is a key function needed to run containeriz
 On December 17, 2020, [AWS announced that customers of EC2 Image Builder can now build and test container images compliant with the Open Container Initiative (OCI) specification](https://aws.amazon.com/about-aws/whats-new/2020/12/ec2-image-builder-supports-container-images/). As a result, EC2 Image Builder can be used to automate the building of both – Virtual Machine and container images with similar workflows. Similar to Image Builder’s workflows to build VM images, when software updates become available, Image Builder can automatically produce new up-to-date container images and publish them to specified Amazon Elastic Container Registry (ECR) repositories after running stipulated tests.
 
 
-While customers can currently create an automated container image build pipeline in the AWS Management Console, the AWS CloudFormation documentation still does not provide all of the required Imagebuilder resources needed to generate a container image pipeline through AWS CloudFormation infrastructure as code (IaC). The below solution seeks to overcome this obstacle. 
+While customers can currently create an automated container image build pipeline in the AWS Management Console, the AWS CloudFormation documentation still does not provide all of the required Image Builder resources needed to generate a container image pipeline through AWS CloudFormation infrastructure as code (IaC). The below solution seeks to overcome this obstacle. 
 ___
 
 ## About this CloudFormation template
 
+This solution follows a strategy similar to examples from [this repository that demonstrates various aspects of Amazon EC2 Image Builder](https://github.com/aws-samples/amazon-ec2-image-builder-samples).
+
+*PLEASE MAKE SURE TO READ ALL SECTIONS BELOW BEFORE DEPLOYING THIS STACK!*
+
 This sample template creates AWS CloudFormation resources for an EC2 ImageBuilder pipeline that builds an Amazon Linux 2 container image with Docker and publishes the image to the specified Amazon Elastic Container Registry (ECR) repository. The pipeline, by default, is scheduled to run a build at 9:00AM Coordinated Universal Time (UTC) on the first day of every month.
 
-
 If you do not have a default VPC, or want to use a custom VPC, you will need to specify a subnet ID and one or more security group IDs in the VPC as parameters when you create a stack based on this template.
+
 ___
 
 ## What resources does this CloudFormation stack deploy?
@@ -94,7 +98,7 @@ This solution can be deployed using both the AWS Management Console or the Comma
 2. Run the following command from your terminal:
 ```
 aws cloudformation create-stack \
---stack-name sample-ec2-ib-pipeline-container-images \
+--stack-name sample-ec2-ib-pipeline-container-image \
 --template-body file://ec2_imagebuilder_pipeline_for_container_images.yml \
 --parameters file://ec2_imagebuilder_pipeline_for_container_images.json \
 --capabilities CAPABILITY_NAMED_IAM \
